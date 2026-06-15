@@ -1,12 +1,6 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# ESG Intel Agent
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/d05be460-b752-4674-938a-a96584815e86
+This repository contains the Document Classification and ESG Extraction Engine. It parses uploaded ESG, sustainability, or other reports to perform classification, framework auditing, document structure tree parsing, and metric extraction.
 
 ## Run Locally
 
