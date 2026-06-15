@@ -748,7 +748,12 @@ export default function App() {
           setRetryStatus(`Scanning ${file.name} (${++processedCount}/${files.length})...`);
           
           let part: any;
-          if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+          const ext = file.name.split('.').pop()?.toLowerCase();
+          
+          if (file.type === 'application/pdf' || 
+              file.type.startsWith('image/') || 
+              file.type.startsWith('audio/') || 
+              file.type.startsWith('video/')) {
             const reader = new FileReader();
             const base64Promise = new Promise<string>((resolve) => {
               reader.onload = () => {
@@ -759,20 +764,47 @@ export default function App() {
             reader.readAsDataURL(file);
             const base64Data = await base64Promise;
             part = { inlineData: { data: base64Data, mimeType: file.type } };
-          } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          } else if (ext === 'xlsx' || ext === 'xls') {
             const buffer = await file.arrayBuffer();
             const workbook = XLSX.read(buffer);
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const csv = XLSX.utils.sheet_to_csv(worksheet);
             part = { text: `Excel Data from ${file.name} (Sheet: ${firstSheetName}):\n${csv}` };
-          } else if (file.name.endsWith('.docx')) {
+          } else if (ext === 'docx') {
             const buffer = await file.arrayBuffer();
             const result = await mammoth.extractRawText({ arrayBuffer: buffer });
             part = { text: `Word Document Data from ${file.name}:\n${result.value}` };
           } else {
-            const text = await file.text();
-            part = { text: `File Content from ${file.name}:\n${text}` };
+            try {
+              const text = await file.text();
+              const isBinary = /[\x00-\x08\x0E-\x1F]/.test(text.slice(0, 1000));
+              if (isBinary) {
+                const reader = new FileReader();
+                const base64Promise = new Promise<string>((resolve) => {
+                  reader.onload = () => {
+                    const base64 = (reader.result as string).split(',')[1];
+                    resolve(base64);
+                  };
+                });
+                reader.readAsDataURL(file);
+                const base64Data = await base64Promise;
+                part = { inlineData: { data: base64Data, mimeType: file.type || 'application/octet-stream' } };
+              } else {
+                part = { text: `File Content from ${file.name}:\n${text}` };
+              }
+            } catch (err) {
+              const reader = new FileReader();
+              const base64Promise = new Promise<string>((resolve) => {
+                reader.onload = () => {
+                  const base64 = (reader.result as string).split(',')[1];
+                  resolve(base64);
+                };
+              });
+              reader.readAsDataURL(file);
+              const base64Data = await base64Promise;
+              part = { inlineData: { data: base64Data, mimeType: file.type || 'application/octet-stream' } };
+            }
           }
 
           const ecosystemItemSchema = {
@@ -871,7 +903,8 @@ TASKS:
 4. Generate confidence_score between 0.0 and 1.0 based only on document evidence.
 5. Extract document structure. Return all major sections and subsections when available.
 6. Extract reporting frameworks, standards, certifications, ratings, and assurance references explicitly mentioned in the document. Organise them under reportingEcosystem.
-7. Extract all ESG metrics explicitly stated in the document. Organise them under metrics.
+7. Extract all key metrics and indicators explicitly stated in the document (such as ESG parameters, blood test values, invoice amounts/costs, resume experience duration, academic grades, bank transactions, etc.). Organise them under metrics.
+For each metric, determine year, metric_name, value, unit, and category. If standard ESG categories (Environmental, Social, Governance) do not apply, use appropriate domain categories (e.g., Financial, Hematology, Experience, Education, Personal, etc.).
 8. Identify ESG data locations within the document.
 9. Detect whether the document contains: Tables, Charts, Graphs, KPI Dashboards, Narrative Sections.
 10. If multiple reporting years are present, identify reporting evolution signals under reportEvolution.
@@ -1115,9 +1148,9 @@ I have performed a strict document extraction and classification. You can view t
               <div className="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center mb-6">
                 <Upload className="w-8 h-8 text-zinc-500" />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-white">Upload ESG Reports</h2>
+              <h2 className="text-xl font-bold mb-2 text-white">Upload Documents</h2>
               <p className="text-sm text-zinc-500 mb-8 max-w-xs">
-                Upload PDFs, Word, Excel, CSV, text, or any other sustainability reports to begin your analysis.
+                Upload any report, medical record, resume, invoice, spreadsheet, text, code, or media file to begin your analysis.
               </p>
               <label className="relative group cursor-pointer">
                 <div className={cn(
@@ -1197,7 +1230,7 @@ I have performed a strict document extraction and classification. You can view t
                             {file.metricsCount > 0 ? (
                               <p className="text-[10px] text-emerald-400 font-medium mt-2 flex items-center gap-1">
                                 <CheckCircle2 className="w-2.5 h-2.5" />
-                                Holds {file.metricsCount} ESG metrics
+                                Holds {file.metricsCount} metrics
                               </p>
                             ) : (
                               <p className="text-[10px] text-zinc-500 italic mt-2">
@@ -1210,7 +1243,7 @@ I have performed a strict document extraction and classification. You can view t
                         {file.metrics && file.metrics.length > 0 && (
                           <div className="pt-3 border-t border-zinc-800/40 space-y-2">
                             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                              Extracted ESG Metrics
+                              Extracted Metrics
                             </p>
                             <div className="max-h-48 overflow-y-auto space-y-2 pr-1 divide-y divide-zinc-800/40 custom-scrollbar">
                               {file.metrics.map((m, mIdx) => {
