@@ -118,6 +118,11 @@ interface ESGDocAnalysis {
   esgDataLocations: string[];
   reportEvolution: string[];
   metrics: ESGMetric[];
+  suggestedPeer?: {
+    companyName: string;
+    summary: string;
+    metrics: ESGMetric[];
+  };
 }
 
 interface ESGDataset {
@@ -1494,6 +1499,28 @@ export default function App() {
                   },
                   required: ["year", "metric_name", "value", "unit", "category"]
                 }
+              },
+              suggestedPeer: {
+                type: Type.OBJECT,
+                properties: {
+                  companyName: { type: Type.STRING },
+                  summary: { type: Type.STRING },
+                  metrics: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        year: { type: Type.STRING },
+                        metric_name: { type: Type.STRING },
+                        value: { type: Type.STRING },
+                        unit: { type: Type.STRING },
+                        category: { type: Type.STRING }
+                      },
+                      required: ["year", "metric_name", "value", "unit", "category"]
+                    }
+                  }
+                },
+                required: ["companyName", "summary", "metrics"]
               }
             },
             required: [
@@ -1508,7 +1535,8 @@ export default function App() {
               "dataFormats",
               "esgDataLocations",
               "reportEvolution",
-              "metrics"
+              "metrics",
+              "suggestedPeer"
             ]
           };
 
@@ -1537,6 +1565,7 @@ For each metric, determine year, metric_name, value, unit, and category. If stan
 8. Identify ESG data locations within the document.
 9. Detect whether the document contains: Tables, Charts, Graphs, KPI Dashboards, Narrative Sections.
 10. If multiple reporting years are present, identify reporting evolution signals under reportEvolution.
+11. Generate a relatable suggestedPeer dataset representing standard peer benchmarks, industry averages, normal reference ranges, or a comparable competitor baseline corresponding to this document's content and metrics. It must have matching metric names and units so they can be compared directly side-by-side. Make sure to generate realistic values (e.g. standard healthy reference values for a blood test, comparable engineer stats for a resume, industry standard averages for an invoice).
 
 Use the specified JSON schema structure.`;
 
@@ -1611,12 +1640,66 @@ Use the specified JSON schema structure.`;
           })) : [],
           analysis: fileResult
         });
+
+        // Generate virtual peer dataset if returned by Gemini
+        if (fileResult.suggestedPeer) {
+          const peer = fileResult.suggestedPeer;
+          const peerName = `Peer-Baseline-For-${fileName}`;
+          const virtualPeerMeta: UploadedFileMeta = {
+            name: peerName,
+            type: 'application/json',
+            size: '1.5 KB',
+            kindText: 'Auto-Generated Peer Baseline',
+            metricsCount: peer.metrics?.length || 0,
+            metrics: peer.metrics ? peer.metrics.map(m => ({
+              year: m.year,
+              metric_name: m.metric_name,
+              value: m.value,
+              unit: m.unit,
+              category: m.category
+            })) : [],
+            analysis: {
+              documentType: fileResult.documentType,
+              documentSubtype: 'Peer Baseline',
+              companyName: peer.companyName,
+              reportingYears: fileResult.reportingYears,
+              summary: peer.summary,
+              confidence_score: 1.0,
+              documentStructure: ['Comparative Baseline'],
+              reportingEcosystem: { frameworks: [], standards: [], ratings: [], certifications: [], assuranceStandards: [] },
+              dataFormats: { tables: true, charts: false, graphs: false, kpiDashboards: false, narrativeSections: false },
+              esgDataLocations: [],
+              reportEvolution: [],
+              metrics: peer.metrics || []
+            }
+          };
+
+          if (peer.metrics) {
+            const mapped = peer.metrics.map(m => ({
+              year: m.year,
+              metric_name: m.metric_name,
+              value: m.value,
+              unit: m.unit,
+              category: m.category
+            }));
+            mergedDataset.metrics = [...mergedDataset.metrics, ...mapped];
+          }
+
+          newUploadedFiles.push(virtualPeerMeta);
+        }
       }
 
       const prevLen = uploadedFiles.length;
       setUploadedFiles(prev => [...prev, ...newUploadedFiles]);
-      if (selectedFileIndex === null && newUploadedFiles.length > 0) {
-        setSelectedFileIndex(prevLen);
+      
+      const totalCount = prevLen + newUploadedFiles.length;
+      if (totalCount > 1) {
+        setActiveTab('comparison');
+      } else {
+        if (selectedFileIndex === null && newUploadedFiles.length > 0) {
+          setSelectedFileIndex(prevLen);
+        }
+        setActiveTab('dashboard');
       }
 
       // Deduplicate metrics if necessary (same year, same metric name)
