@@ -1259,6 +1259,31 @@ function ComparisonDashboard({ files, selectedIndices, onToggleIndex, onLoadPeer
   );
 }
 
+function cleanErrorMessage(err: any): string {
+  if (!err) return "Please check that they are valid files.";
+  
+  let msg = err.message || String(err);
+  
+  // Try to find and parse JSON inside the error message
+  try {
+    const jsonMatch = msg.match(/\{.*\}/s);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.error && parsed.error.message) {
+        msg = parsed.error.message;
+      }
+    }
+  } catch (e) {
+    // Ignore and use original msg
+  }
+  
+  if (msg.includes("Quota exceeded") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota")) {
+    return "You have exceeded your Gemini API daily free quota limit (20 requests/day). Please configure a billing plan in Google AI Studio or use a different API key.";
+  }
+  
+  return msg;
+}
+
 export default function App() {
   const [isIngesting, setIsIngesting] = useState(false);
   const [retryStatus, setRetryStatus] = useState<string | null>(null);
@@ -1731,7 +1756,7 @@ I have performed a strict document extraction and classification. You can view t
       setMessages(prev => [...prev, newMsg]);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to process the documents. " + (err.message || "Please check that they are valid files."));
+      setError("Failed to process the documents. " + cleanErrorMessage(err));
     } finally {
       setIsIngesting(false);
       setRetryStatus(null);
