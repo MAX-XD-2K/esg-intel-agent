@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+/* Custom Scrollbar Styles for the entire app */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.5); /* zinc-900 / 50% */
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(63, 63, 70, 0.6); /* zinc-700 / 60% */
+  border-radius: 8px;
+  border: 1px solid rgba(39, 39, 42, 0.4);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 82, 91, 0.8); /* zinc-600 / 80% */
+}
+
+/* Firefox scrollbar support */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(63, 63, 70, 0.6) rgba(24, 24, 27, 0.5);
+}
