@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #050507; /* Sleek pitch-black background */
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-outfit);
+}
+
 /* Custom Scrollbar Styles for the entire app */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -7,22 +22,22 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(24, 24, 27, 0.5); /* zinc-900 / 50% */
+  background: rgba(10, 10, 12, 0.3); /* zinc-950 / 30% */
   border-radius: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(63, 63, 70, 0.6); /* zinc-700 / 60% */
+  background: rgba(63, 63, 70, 0.4); /* zinc-700 / 40% */
   border-radius: 8px;
-  border: 1px solid rgba(39, 39, 42, 0.4);
+  border: 1px solid rgba(39, 39, 42, 0.2);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(82, 82, 91, 0.8); /* zinc-600 / 80% */
+  background: rgba(82, 82, 91, 0.7); /* zinc-600 / 70% */
 }
 
 /* Firefox scrollbar support */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(63, 63, 70, 0.6) rgba(24, 24, 27, 0.5);
+  scrollbar-color: rgba(63, 63, 70, 0.4) rgba(10, 10, 12, 0.3);
 }

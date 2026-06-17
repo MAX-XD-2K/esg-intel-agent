@@ -1813,16 +1813,20 @@ I have performed a strict document extraction and classification. You can view t
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-zinc-800">
+    <div className="min-h-screen bg-[#050507] text-zinc-100 font-sans selection:bg-zinc-800 relative overflow-hidden">
+      {/* Background Radial Glow */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px] pointer-events-none" />
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-[#050507]/40 backdrop-blur-xl border-b border-zinc-900/60 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-            <BarChart3 className="text-zinc-900 w-6 h-6" />
+          <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/10">
+            <BarChart3 className="text-white w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white">ESG Intel Agent</h1>
-            <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-zinc-500">Strict Data Mode Active</p>
+            <h1 className="text-md font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-400">ESG Intel Agent</h1>
+            <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-zinc-500">Strict Data Mode Active</p>
           </div>
         </div>
         
@@ -2069,9 +2073,9 @@ I have performed a strict document extraction and classification. You can view t
         </div>
 
         {/* Middle Content: Chat & Analysis */}
-        <div className="lg:col-span-8 flex flex-col bg-zinc-900 border border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
+        <div className="lg:col-span-8 flex flex-col bg-[#0a0a0c]/20 backdrop-blur-xl border border-zinc-900/60 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] overflow-hidden">
           {/* Tabs Navigation Header */}
-          <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3 bg-zinc-900/85 backdrop-blur-sm">
+          <div className="flex items-center justify-between border-b border-zinc-900/60 px-6 py-3 bg-[#050507]/40 backdrop-blur-md">
             <div className="flex gap-4">
               <button 
                 onClick={() => setActiveTab('dashboard')}
@@ -2154,8 +2158,8 @@ I have performed a strict document extraction and classification. You can view t
                       <div className={cn(
                         "max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed",
                         msg.role === 'user' 
-                          ? "bg-white text-zinc-900 rounded-tr-none" 
-                          : "bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-tl-none"
+                          ? "bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white rounded-2xl rounded-tr-none shadow-lg shadow-indigo-600/10 font-medium" 
+                          : "bg-zinc-900/60 backdrop-blur-md text-zinc-100 border border-zinc-850 rounded-2xl rounded-tl-none shadow-sm"
                       )}>
                         <div className="prose prose-sm prose-invert prose-zinc max-w-none">
                           <Markdown>{msg.content}</Markdown>
@@ -2224,7 +2228,7 @@ I have performed a strict document extraction and classification. You can view t
               </div>
 
               {/* Input Area */}
-              <div className="p-6 bg-zinc-900 border-t border-zinc-800">
+              <div className="p-6 bg-[#050507]/65 backdrop-blur-md border-t border-zinc-900/60">
                 <div className="relative group">
                   <input 
                     type="text"
@@ -2233,12 +2237,12 @@ I have performed a strict document extraction and classification. You can view t
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     placeholder={dataset ? "Ask about Scope 1 emissions, diversity ratios, or trends..." : "Upload a document to start analysis"}
                     disabled={!dataset || isAnalyzing}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 pr-14 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/5 focus:border-zinc-500 transition-all disabled:opacity-50"
+                    className="w-full bg-zinc-900/65 border border-zinc-850 focus:border-zinc-700 rounded-2xl px-5 py-4 pr-14 text-sm text-white placeholder:text-zinc-550 focus:outline-none focus:ring-1 focus:ring-zinc-700/50 transition-all disabled:opacity-50"
                   />
                   <button 
                     onClick={handleSendMessage}
                     disabled={!dataset || isAnalyzing || !input.trim()}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-zinc-900 rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-tr from-indigo-500 to-indigo-600 hover:from-indigo-650 hover:to-indigo-550 text-white rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:from-zinc-800 disabled:to-zinc-850 disabled:text-zinc-500 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-md"
                   >
                     {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>
