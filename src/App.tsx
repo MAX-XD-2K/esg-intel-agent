@@ -1852,8 +1852,8 @@ I have performed a strict document extraction and classification. You can view t
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#050507]/40 backdrop-blur-xl border-b border-zinc-900/60 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/10">
-            <BarChart3 className="text-white w-5 h-5" />
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-white/10">
+            <BarChart3 className="text-black w-5 h-5" />
           </div>
           <div>
             <h1 className="text-md font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-400">ESG Intel Agent</h1>
