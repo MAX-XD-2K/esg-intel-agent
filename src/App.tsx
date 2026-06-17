@@ -1525,45 +1525,16 @@ function cleanErrorMessage(err: any): string {
 export default function App() {
   const [isIngesting, setIsIngesting] = useState(false);
   const [retryStatus, setRetryStatus] = useState<string | null>(null);
-  const [dataset, setDataset] = useState<ESGDataset | null>(() => {
-    const googleMetrics = GOOGLE_PEER_META.metrics || [];
-    const appleMetrics = APPLE_PEER_META.metrics || [];
-    return {
-      companyName: 'Google LLC',
-      summary: `${GOOGLE_PEER_META.analysis.summary} | ${APPLE_PEER_META.analysis.summary}`,
-      metrics: [
-        ...googleMetrics.map(m => ({
-          year: m.year,
-          metric_name: m.metric_name,
-          value: m.value,
-          unit: m.unit,
-          category: m.category
-        })),
-        ...appleMetrics.map(m => ({
-          year: m.year,
-          metric_name: m.metric_name,
-          value: m.value,
-          unit: m.unit,
-          category: m.category
-        }))
-      ]
-    };
-  });
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileMeta[]>(() => {
-    const googleFile = { ...GOOGLE_PEER_META, parsingMode: 'Gemini AI' as const };
-    const appleFile = { ...APPLE_PEER_META, parsingMode: 'Gemini AI' as const };
-    return [googleFile, appleFile];
-  });
-  const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(0);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'comparison'>('comparison');
+  const [dataset, setDataset] = useState<ESGDataset | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileMeta[]>([]);
+  const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'comparison'>('dashboard');
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       role: 'assistant',
       content: `Welcome to the **ESG Intelligence Agent**! 
 
-I have preloaded the 2024 ESG reports for **Google** and **Apple** so you can view comparisons, analyze metrics in the dashboard, and ask questions instantly in the **Interactive Chat** without any setup or API key.
-
-You can also upload your own ESG reports or text files to run real-time extractions.`
+Please upload your ESG reports, spreadsheets, text files, or PDFs in the sidebar to begin analysis. The agent operates in **Strict Data Mode**, ensuring all insights are strictly traceable to your documents.`
     }
   ]);
   const [input, setInput] = useState('');
@@ -1878,34 +1849,49 @@ Use the specified JSON schema structure.`;
           let fileResult: ESGDocAnalysis;
           let parsingMode: 'Gemini AI' | 'Local Parser' = 'Gemini AI';
 
-          try {
-            const geminiPromise = callWithRetry(() => ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: [
-                {
-                  parts: [
-                    part,
-                    { text: documentPrompt }
-                  ]
+          const key = process.env.GEMINI_API_KEY;
+          const isValidKey = typeof key === 'string' && key.trim() !== '' && key.startsWith('AIzaSy');
+
+          if (isValidKey) {
+            try {
+              const geminiPromise = callWithRetry(() => ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: [
+                  {
+                    parts: [
+                      part,
+                      { text: documentPrompt }
+                    ]
+                  }
+                ],
+                config: {
+                  responseMimeType: "application/json",
+                  responseSchema: docAnalysisSchema as any
                 }
-              ],
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: docAnalysisSchema as any
+              }), (attempt, delay) => {
+                setRetryStatus(`Rate limit hit. Resuming in ${Math.round(delay/1000)}s...`);
+              });
+
+              const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT')), 2000)
+              );
+
+              const response = await Promise.race([geminiPromise, timeoutPromise]);
+              fileResult = JSON.parse(response.text || '{}') as ESGDocAnalysis;
+              parsingMode = 'Gemini AI';
+            } catch (err) {
+              console.warn(`Gemini processing for ${file.name} failed or timed out. Falling back to local parser.`, err);
+              let rawText = '';
+              if (part.text) {
+                rawText = part.text;
+              } else if (part.inlineData) {
+                rawText = `[Binary content processed locally]`;
               }
-            }), (attempt, delay) => {
-              setRetryStatus(`Rate limit hit. Resuming in ${Math.round(delay/1000)}s...`);
-            });
-
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('TIMEOUT')), 3500)
-            );
-
-            const response = await Promise.race([geminiPromise, timeoutPromise]);
-            fileResult = JSON.parse(response.text || '{}') as ESGDocAnalysis;
-            parsingMode = 'Gemini AI';
-          } catch (err) {
-            console.warn(`Gemini processing for ${file.name} failed or timed out. Falling back to local parser.`, err);
+              fileResult = localFallbackParse(rawText, file.name);
+              parsingMode = 'Local Parser';
+            }
+          } else {
+            console.info(`Skipping Gemini API call for ${file.name} (API key is invalid or not configured). Using local parser.`);
             let rawText = '';
             if (part.text) {
               rawText = part.text;
@@ -2071,77 +2057,9 @@ I have performed a strict document extraction and classification. You can view t
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsAnalyzing(true);
 
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const geminiPromise = callWithRetry(() => ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            parts: [
-              { text: `Context Dataset: ${JSON.stringify(dataset)}` },
-              ...(selectedFileIndex !== null && uploadedFiles[selectedFileIndex]
-                ? [{ text: `Active Document Analysis: ${JSON.stringify(uploadedFiles[selectedFileIndex].analysis)}` }]
-                : []),
-              { text: `User Question: ${userMessage}` }
-            ]
-          }
-        ],
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              answer: { type: Type.STRING, description: "The direct answer and interpretation in markdown format." },
-              tableData: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    Year: { type: Type.STRING },
-                    Metric: { type: Type.STRING },
-                    Value: { type: Type.STRING }
-                  }
-                }
-              },
-              percentageChange: { type: Type.STRING },
-              chartData: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING, description: "Year or Label" },
-                    value: { type: Type.NUMBER }
-                  }
-                }
-              },
-              chartType: { type: Type.STRING, enum: ["line", "bar"] },
-              missingData: { type: Type.STRING }
-            },
-            required: ["answer"]
-          }
-        }
-      }), (attempt, delay) => {
-        setRetryStatus(`Optimizing throughput... Retrying in ${Math.round(delay/1000)}s...`);
-      });
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT')), 3500)
-      );
-
-      const response = await Promise.race([geminiPromise, timeoutPromise]);
-      const result = JSON.parse(response.text || '{}');
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: result.answer,
-        data: result.tableData,
-        chartData: result.chartData,
-        chartType: result.chartType,
-        percentageChange: result.percentageChange
-      } as any]);
-    } catch (err) {
-      console.warn("Gemini chat failed or timed out. Falling back to local offline chatbot.", err);
-      const query = userMessage.toLowerCase();
+    const runLocalChatbotFallback = (queryText: string) => {
+      console.warn("Falling back to local offline chatbot.");
+      const query = queryText.toLowerCase();
       const matchedMetrics: ESGMetric[] = (dataset.metrics || []).filter(m => {
         const metName = m.metric_name.toLowerCase();
         return metName.includes(query) || 
@@ -2203,7 +2121,7 @@ ${percentageChange ? `#### Trend Analysis
         }
       } else {
         answer = `### ESG Inquiry Response (Local Offline Mode)
-The information requested regarding "${userMessage}" is not explicitly identified in the loaded disclosures.
+The information requested regarding "${queryText}" is not explicitly identified in the loaded disclosures.
 
 Under **Strict Data Mode**, I cannot guess, speculate, or infer values. Please try checking:
 1. Greenhouse Gas Emissions (Scope 1 & 2, or Scope 3)
@@ -2220,7 +2138,88 @@ Under **Strict Data Mode**, I cannot guess, speculate, or infer values. Please t
         chartType,
         percentageChange
       } as any]);
-    } finally {
+    };
+
+    const key = process.env.GEMINI_API_KEY;
+    const isValidKey = typeof key === 'string' && key.trim() !== '' && key.startsWith('AIzaSy');
+
+    if (isValidKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        const geminiPromise = callWithRetry(() => ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [
+            {
+              parts: [
+                { text: `Context Dataset: ${JSON.stringify(dataset)}` },
+                ...(selectedFileIndex !== null && uploadedFiles[selectedFileIndex]
+                  ? [{ text: `Active Document Analysis: ${JSON.stringify(uploadedFiles[selectedFileIndex].analysis)}` }]
+                  : []),
+                { text: `User Question: ${userMessage}` }
+              ]
+            }
+          ],
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                answer: { type: Type.STRING, description: "The direct answer and interpretation in markdown format." },
+                tableData: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      Year: { type: Type.STRING },
+                      Metric: { type: Type.STRING },
+                      Value: { type: Type.STRING }
+                    }
+                  }
+                },
+                percentageChange: { type: Type.STRING },
+                chartData: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING, description: "Year or Label" },
+                      value: { type: Type.NUMBER }
+                    }
+                  }
+                },
+                chartType: { type: Type.STRING, enum: ["line", "bar"] },
+                missingData: { type: Type.STRING }
+              },
+              required: ["answer"]
+            }
+          }
+        }), (attempt, delay) => {
+          setRetryStatus(`Optimizing throughput... Retrying in ${Math.round(delay/1000)}s...`);
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('TIMEOUT')), 2000)
+        );
+
+        const response = await Promise.race([geminiPromise, timeoutPromise]);
+        const result = JSON.parse(response.text || '{}');
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: result.answer,
+          data: result.tableData,
+          chartData: result.chartData,
+          chartType: result.chartType,
+          percentageChange: result.percentageChange
+        } as any]);
+      } catch (err) {
+        runLocalChatbotFallback(userMessage);
+      } finally {
+        setIsAnalyzing(false);
+        setRetryStatus(null);
+      }
+    } else {
+      runLocalChatbotFallback(userMessage);
       setIsAnalyzing(false);
       setRetryStatus(null);
     }
