@@ -57,13 +57,19 @@ async function callWithRetry(fn: () => Promise<any>, onRetry?: (attempt: number,
         err.message?.includes('429') || 
         err.message?.includes('RESOURCE_EXHAUSTED') || 
         err.message?.includes('quota') ||
+        err.message?.includes('503') ||
+        err.message?.includes('UNAVAILABLE') ||
+        err.message?.includes('temporary') ||
         err.status === 429 || 
-        err.code === 429;
+        err.code === 429 ||
+        err.status === 503 ||
+        err.code === 503 ||
+        err.status === 'UNAVAILABLE';
 
       if (isRateLimit && i < maxRetries - 1) {
         const delay = initialDelay * Math.pow(2, i);
         if (onRetry) onRetry(i + 1, delay);
-        console.warn(`Rate limit hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+        console.warn(`Rate limit/transient error hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
@@ -1725,7 +1731,7 @@ I have performed a strict document extraction and classification. You can view t
       setMessages(prev => [...prev, newMsg]);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to process the documents. Please ensure they are valid PDFs or images containing ESG data.");
+      setError("Failed to process the documents. " + (err.message || "Please check that they are valid files."));
     } finally {
       setIsIngesting(false);
       setRetryStatus(null);
