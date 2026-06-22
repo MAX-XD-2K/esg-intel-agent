@@ -2009,13 +2009,14 @@ Use the specified JSON schema structure.`;
       const prevLen = uploadedFiles.length;
       setUploadedFiles(prev => [...prev, ...newUploadedFiles]);
       
+      if (selectedFileIndex === null && newUploadedFiles.length > 0) {
+        setSelectedFileIndex(prevLen);
+      }
+
       const totalCount = prevLen + newUploadedFiles.length;
       if (totalCount > 1) {
         setActiveTab('comparison');
       } else {
-        if (selectedFileIndex === null && newUploadedFiles.length > 0) {
-          setSelectedFileIndex(prevLen);
-        }
         setActiveTab('dashboard');
       }
 
@@ -2260,7 +2261,7 @@ Under **Strict Data Mode**, I cannot guess, speculate, or infer values. Please t
             </label>
 
             <button 
-              onClick={() => { setDataset(null); setMessages([]); setUploadedFiles([]); setComparedFileIndices([]); setActiveTab('dashboard'); }}
+              onClick={() => { setDataset(null); setMessages([]); setUploadedFiles([]); setSelectedFileIndex(null); setComparedFileIndices([]); setActiveTab('dashboard'); }}
               className="text-xs font-medium text-zinc-500 hover:text-zinc-100 transition-colors"
             >
               Reset Session
